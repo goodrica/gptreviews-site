@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gptreviews.io — AI Prediction Model Leaderboard</title>
+<meta name="description" content="Empirical leaderboard of AI models predicting crypto & forex markets. Accuracy, Brier scores, and P&L — measured, not marketed.">
+<style>
+:root{
+  --bg:#0d1117;--panel:#161b22;--panel2:#1c2129;--border:#30363d;
+  --text:#e6edf3;--muted:#8b949e;--dim:#6e7681;
+  --green:#3fb950;--red:#f85149;--accent:#58a6ff;--gold:#d29922;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+header{position:sticky;top:0;z-index:10;background:rgba(13,17,23,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+.hbar{display:flex;align-items:center;gap:18px;padding:14px 0}
+.logo{font-weight:700;font-size:17px;color:var(--text);letter-spacing:-.3px}
+.logo span{color:var(--accent)}
+nav{display:flex;gap:4px;margin-left:12px}
+nav a{padding:6px 12px;border-radius:6px;color:var(--muted);font-size:14px;font-weight:500}
+nav a.active{color:var(--text);background:var(--panel2)}
+nav a:hover{color:var(--text);text-decoration:none}
+.meta{margin-left:auto;font-size:12px;color:var(--dim);font-family:var(--mono)}
+.hero{padding:44px 0 10px}
+.hero h1{font-size:30px;letter-spacing:-.5px;font-weight:700}
+.hero p{color:var(--muted);max-width:680px;margin-top:8px}
+.statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:26px 0 8px}
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.stat .v{font-size:24px;font-weight:700;font-family:var(--mono)}
+.stat .l{font-size:12px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+.chip{padding:5px 13px;border-radius:99px;border:1px solid var(--border);background:var(--panel);color:var(--muted);font-size:13px;cursor:pointer}
+.chip.on{color:var(--text);border-color:var(--accent);background:rgba(88,166,255,.12)}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:14px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--panel2);cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:var(--text)}
+th .arr{color:var(--accent);font-size:10px}
+td{padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:13.5px;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(88,166,255,.05)}
+td.model{font-family:inherit;font-weight:600}
+.rank{color:var(--dim);width:34px}
+.medal1{color:var(--gold)}.medal2{color:#c0c0c0}.medal3{color:#cd7f32}
+.up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--muted)}
+.bar{display:inline-block;height:6px;border-radius:3px;background:var(--accent);vertical-align:middle;margin-left:8px}
+.tag{display:inline-block;padding:1px 9px;border-radius:99px;font-size:11px;font-family:inherit;border:1px solid var(--border);color:var(--muted)}
+.tag.crypto{color:#f0883e;border-color:#f0883e55}
+.tag.forex{color:#a371f7;border-color:#a371f755}
+.tag.all{color:var(--accent);border-color:#58a6ff55}
+.pend{color:var(--dim)}
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;margin-top:18px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:18px}
+.card h3{font-size:16px;margin-bottom:2px}
+.card .auth{font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+.card p{font-size:13.5px;color:var(--muted);margin-top:10px}
+.kv{margin-top:10px;font-size:12px;color:var(--dim);font-family:var(--mono)}
+section{padding:10px 0 40px}
+.about{max-width:760px;color:var(--muted);font-size:14.5px}
+.about h2{color:var(--text);margin:22px 0 8px;font-size:19px}
+.about li{margin:6px 0 6px 20px}
+footer{border-top:1px solid var(--border);padding:22px 0;color:var(--dim);font-size:12.5px;display:flex;gap:16px}
+.load{padding:60px;text-align:center;color:var(--dim);font-family:var(--mono)}
+.err{padding:40px;border:1px solid var(--red);border-radius:8px;background:rgba(248,81,73,.08);color:var(--text)}
+@media(max-width:760px){nav{display:none}.meta{display:none}td,th{padding:7px 8px}}
+</style>
+</head>
+<body>
+<header><div class="wrap hbar">
+  <div class="logo">gptreviews<span>.io</span></div>
+  <nav id="nav">
+    <a data-tab="leaderboard" class="active">Leaderboard</a>
+    <a data-tab="predictions">Predictions</a>
+    <a data-tab="models">Models</a>
+    <a data-tab="about">About</a>
+  </nav>
+  <div class="meta" id="lastupd">loading…</div>
+</div></header>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>AI Prediction Model Leaderboard</h1>
+    <p>Empirical, out-of-sample evaluation of AI models calling crypto and forex markets. Every score is computed from resolved predictions in a public database — no vendor benchmarks, no cherry-picking.</p>
+    <div class="statrow" id="stats"></div>
+  </div>
+  <section id="leaderboard">
+    <div class="chips" id="catChips"></div>
+    <table id="lb"><thead><tr>
+      <th>#</th><th data-k="name">Model <span class="arr"></span></th><th data-k="n">Preds <span class="arr"></span></th>
+      <th data-k="acc">Accuracy <span class="arr"></span></th><th data-k="brier">Brier ↓ <span class="arr"></span></th>
+      <th data-k="conf">Confidence <span class="arr"></span></th><th data-k="pl">P&amp;L <span class="arr"></span></th><th data-k="streak">Streak <span class="arr"></span></th>
+    </tr></thead><tbody></tbody></table>
+  </section>
+  <section id="predictions" style="display:none">
+    <div class="chips" id="resChips">
+      <span class="chip on" data-f="all">All</span><span class="chip" data-f="resolved">Resolved</span><span class="chip" data-f="open">Open</span>
+    </div>
+    <table id="pt"><thead><tr><th>Time (UTC)</th><th>Model</th><th>Asset</th><th>TF</th><th>Call</th><th>Conf</th><th>Actual</th><th>Result</th><th>Brier</th></tr></thead><tbody></tbody></table>
+    <div class="chips"><span class="chip" id="moreBtn">Load more ▾</span></div>
+  </section>
+  <section id="models" style="display:none"><div class="cardgrid" id="mcards"></div></section>
+  <section id="about" style="display:none"><div class="about">
+    <h2>What is this?</h2>
+    <p>A live leaderboard measuring how well AI and algorithmic models predict short-horizon price direction in crypto (BTC/ETH) and forex (EUR/USD) markets. Predictions are recorded to a public database <em>before</em> outcomes are known, then scored automatically when each market window resolves.</p>
+    <h2>Methodology</h2>
+    <ul>
+      <li><b>Directions, not prices.</b> Each model emits up/down calls with a confidence; scoring compares against realized direction at the timeframe horizon.</li>
+      <li><b>Brier score</b> = (confidence − outcome)² averaged over resolved predictions; lower is better. 0.25 = coin flip at full confidence.</li>
+      <li><b>Accuracy</b> = share of resolved calls matching realized direction.</li>
+      <li><b>P&amp;L</b> = simulated unit stake per call at the model's confidence.</li>
+      <li><b>Random baseline</b> is included as the floor any real signal must beat.</li>
+    </ul>
+    <h2>Data</h2>
+    <p>All predictions and results are stored in a public Supabase (PostgREST) database and synced from the scoring harness on a schedule. This page computes every statistic client-side from the raw rows — refresh to re-score.</p>
+  </div></section>
+  <footer><span>Data: Supabase (public)</span><span>Built 2026-09</span><a href="https://github.com/goodrica">GitHub</a></footer>
+</div>
+
+<script>
+/* ---- config: publishable key is public by design (RLS blocks writes) ---- */
+const SB_URL = "https://tnseinqssxxtxhirbgmy.supabase.co";
+const SB_KEY = "sb_publishable_fKWPRi2LCotPwBCKhns8DQ_jOFqeDVe";
+
+const $ = s => document.querySelector(s);
+const state = {tab:"leaderboard", cat:"all", sort:"acc", dir:-1, pres:"all", plimit:60};
+let MODELS=[], PREDS=[];
+
+async function sb(path){
+  const r = await fetch(SB_URL+"/rest/v1/"+path, {headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY}});
+  if(!r.ok) throw new Error("Supabase "+r.status);
+  return r.json();
+}
+async function fetchAll(table, cols){
+  const rows=[]; let from=0;
+  while(true){
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?select=${cols}&order=created_at.desc`, {
+      headers:{apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, Range:`${from}-${from+999}`, Prefer:"count=exact"}});
+    if(!r.ok) throw new Error("Supabase "+r.status);
+    const chunk = await r.json();
+    rows.push(...chunk);
+    const cr = r.headers.get("content-range")||"";
+    const total = cr.split("/")[1];
+    from += 1000;
+    if(!chunk.length || (total && from >= +total)) break;
+  }
+  return rows;
+}
+
+function fmtPct(x, n){ return (x*100).toFixed(n??1)+"%"; }
+function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function score(){
+  const byM = {};
+  for(const p of PREDS){
+    const m = byM[p.model_id] ??= {n:0, res:0, hit:0, brier:0, conf:0, pl:0, cats:new Set(), hist:[]};
+    m.n++; m.cats.add(p.asset); m.conf += p.confidence||0;
+    if(p.resolved_at){
+      m.res++;
+      if(p.correct) m.hit++;
+      if(p.brier_score!=null) m.brier += p.brier_score;
+      if(p.profit_loss!=null) m.pl += p.profit_loss;
+      m.hist.push({t:p.created_at, ok:p.correct});
+    }
+  }
+  const out=[];
+  for(const [id,m] of Object.entries(byM)){
+    const meta = MODELS.find(x=>x.model_id===id)||{};
+    let streak=0; const sorted=m.hist.sort((a,b)=>a.t<b.t?-1:1);
+    for(let i=sorted.length-1;i>=0;i--){ if(sorted[i].ok){streak++;} else break; }
+    out.push({id, name:meta.model_name||id, cat:meta.category||"all", author:meta.author,
+      n:m.n, res:m.res, acc:m.res?m.hit/m.res:null, brier:m.res?m.brier/m.res:null,
+      conf:m.n?m.conf/m.n:null, pl:m.pl, streak, assets:m.cats});
+  }
+  return out;
+}
+
+function renderStats(){
+  const res = PREDS.filter(p=>p.resolved_at);
+  const acc = res.length ? res.filter(p=>p.correct).length/res.length : 0;
+  const best = score().filter(m=>m.res>20).sort((a,b)=>(b.acc??0)-(a.acc??0))[0];
+  $("#stats").innerHTML = `
+    <div class="stat"><div class="v">${PREDS.length.toLocaleString()}</div><div class="l">Predictions</div></div>
+    <div class="stat"><div class="v">${MODELS.length}</div><div class="l">Models</div></div>
+    <div class="stat"><div class="v">${(acc*100).toFixed(1)}%</div><div class="l">Overall Accuracy</div></div>
+    <div class="stat"><div class="v" style="color:var(--accent)">${best?esc(best.name):"—"}</div><div class="l">Top Model (n&gt;20)</div></div>`;
+  const latest = PREDS.map(p=>p.created_at).sort().pop();
+  $("#lastupd").textContent = latest ? "updated "+latest.slice(0,16).replace("T"," ")+" UTC" : "";
+}
+
+function renderLB(){
+  let rows = score();
+  if(state.cat!=="all") rows = rows.filter(m=>m.cat===state.cat || m.cat==="all");
+  rows.sort((a,b)=>{
+    const k=state.sort;
+    let va=a[k], vb=b[k];
+    if(k==="name") return state.dir*(va||"").localeCompare(vb||"");
+    va=va??-Infinity; vb=vb??-Infinity;
+    return state.dir*(va-vb)||(b.res-a.res);
+  });
+  $("#lb tbody").innerHTML = rows.map((m,i)=>`
+    <tr>
+      <td class="rank">${i<3?["🥇","🥈","🥉"][i]:i+1}</td>
+      <td class="model">${esc(m.name)} <span class="tag ${m.cat}">${m.cat}</span></td>
+      <td>${m.n} <span style="color:var(--dim)">(${m.res} res)</span></td>
+      <td><b>${m.acc==null?"—":fmtPct(m.acc)}</b>${m.acc==null?"":`<span class="bar" style="width:${m.acc*70}px"></span>`}</td>
+      <td>${m.brier==null?"—":m.brier.toFixed(3)}</td>
+      <td>${m.conf==null?"—":fmtPct(m.conf,0)}</td>
+      <td class="${m.pl>0?"up":m.pl<0?"down":"flat"}">${m.pl>=0?"+":""}${m.pl.toFixed(2)}</td>
+      <td class="${m.streak>0?"up":"flat"}">${m.streak?m.streak+"W":"—"}</td>
+    </tr>`).join("");
+}
+
+function renderPreds(){
+  let rows = PREDS;
+  if(state.pres==="resolved") rows = rows.filter(p=>p.resolved_at);
+  if(state.pres==="open") rows = rows.filter(p=>!p.resolved_at);
+  const slice = rows.slice(0, state.plimit);
+  $("#pt tbody").innerHTML = slice.map(p=>{
+    const meta = MODELS.find(x=>x.model_id===p.model_id)||{};
+    const okc = p.correct===null?"pend":(p.correct?"up":"down");
+    return `<tr>
+      <td style="color:var(--dim)">${esc((p.created_at||"").slice(0,16).replace("T"," "))}</td>
+      <td class="model">${esc(meta.model_name||p.model_id)}</td>
+      <td>${esc(p.asset)}</td><td>${esc(p.timeframe)}</td>
+      <td class="${p.predicted_direction==="up"?"up":"down"}">${p.predicted_direction==="up"?"▲ up":"▼ down"}</td>
+      <td>${p.confidence==null?"—":fmtPct(p.confidence,0)}</td>
+      <td class="${p.actual_direction==="up"?"up":p.actual_direction==="down"?"down":"flat"}">${p.actual_direction?esc(p.actual_direction):"—"}</td>
+      <td class="${okc==="up"?"up":okc==="down"?"down":"pend"}">${okc==="up"?"✓ hit":okc==="down"?"✗ miss":"pending"}</td>
+      <td>${p.brier_score==null?"—":p.brier_score.toFixed(3)}</td>
+    </tr>`;}).join("");
+  $("#moreBtn").style.display = slice.length < rows.length ? "" : "none";
+}
+
+function renderModels(){
+  $("#mcards").innerHTML = MODELS.map(m=>`
+    <div class="card">
+      <h3>${esc(m.model_name)}</h3>
+      <div class="auth">${m.author?`<a href="${esc(m.author_url||"#")}">${esc(m.author)}</a> · `:""}<span class="tag ${m.category}">${esc(m.category)}</span></div>
+      <p>${esc(m.description)}</p>
+      ${m.model_info?`<div class="kv">${Object.entries(m.model_info).map(([k,v])=>`${esc(k)}: ${esc(String(v).slice(0,60))}`).join(" · ")}</div>`:""}
+    </div>`).join("");
+}
+
+/* ---- events ---- */
+$("#nav").addEventListener("click", e=>{
+  const a = e.target.closest("a[data-tab]"); if(!a) return;
+  state.tab = a.dataset.tab;
+  document.querySelectorAll("#nav a").forEach(x=>x.classList.toggle("active", x===a));
+  ["leaderboard","predictions","models","about"].forEach(t=>{
+    const el = document.getElementById(t); if(el) el.style.display = t===state.tab?"":"none";
+  });
+});
+document.addEventListener("click", e=>{
+  const chip = e.target.closest("#catChips .chip");
+  if(chip){ state.cat = chip.dataset.c; document.querySelectorAll("#catChips .chip").forEach(c=>c.classList.toggle("on",c===chip)); renderLB(); }
+  const rchip = e.target.closest("#resChips .chip");
+  if(rchip){ state.pres = rchip.dataset.f; state.plimit=60; document.querySelectorAll("#resChips .chip").forEach(c=>c.classList.toggle("on",c===rchip)); renderPreds(); }
+  if(e.target.id==="moreBtn"){ state.plimit+=100; renderPreds(); }
+  const th = e.target.closest("th[data-k]");
+  if(th){
+    const k = th.dataset.k;
+    if(state.sort===k) state.dir*=-1; else {state.sort=k; state.dir = k==="brier"?1:-1;}
+    document.querySelectorAll("th[data-k] .arr").forEach(a=>a.textContent="");
+    th.querySelector(".arr").textContent = state.dir===1?"▲":"▼";
+    renderLB();
+  }
+});
+
+/* ---- boot ---- */
+(async()=>{
+  try{
+    [MODELS, PREDS] = await Promise.all([
+      sb("models?select=model_id,model_name,description,author,author_url,category,model_info&limit=200"),
+      fetchAll("predictions","model_id,asset,timeframe,predicted_direction,confidence,actual_direction,correct,brier_score,profit_loss,created_at,resolved_at")
+    ]);
+    renderStats();
+    const cats = ["all",...new Set(MODELS.map(m=>m.category).filter(c=>c&&c!=="all"))];
+    $("#catChips").innerHTML = cats.map(c=>`<span class="chip ${c===state.cat?"on":""}" data-c="${esc(c)}">${esc(c)}</span>`).join("");
+    renderLB(); renderPreds(); renderModels();
+    document.querySelector('th[data-k="acc"] .arr').textContent="▼";
+  }catch(err){
+    document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
+      `<div class="err"><b>Data load failed:</b> ${esc(err.message)}. The Supabase mirror may be syncing — try refreshing.</div>`);
+  }
+})();
+</script>
+</body>
+</html>

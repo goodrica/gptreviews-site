@@ -51,6 +51,16 @@ td.model{font-family:inherit;font-weight:600}
 .tag.crypto{color:#f0883e;border-color:#f0883e55}
 .tag.forex{color:#a371f7;border-color:#a371f755}
 .tag.all{color:var(--accent);border-color:#58a6ff55}
+.tag.trained{color:#3fb950;border-color:#3fb95077;background:rgba(63,185,80,.08);font-weight:600}
+.armhead{margin:34px 0 10px;display:flex;align-items:baseline;gap:12px}
+.armhead h2{font-size:18px;font-weight:700}
+.armhead .sub{font-size:13px;color:var(--muted)}
+.armhead.static h2{color:var(--muted)}
+.armhead.trained h2{color:var(--green)}
+.vsbar{margin:30px 0 6px;padding:14px 18px;background:var(--panel);border:1px solid var(--border);border-radius:8px;display:flex;gap:26px;flex-wrap:wrap;align-items:center}
+.vsbar .cell{font-size:13px}
+.vsbar .cell b{font-size:19px;font-family:var(--mono)}
+.vsbar .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
 .pend{color:var(--dim)}
 .cardgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;margin-top:18px}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:18px}
@@ -91,7 +101,7 @@ footer{border-top:1px solid var(--border);padding:22px 0;color:var(--dim);font-s
     <table id="lb"><thead><tr>
       <th>#</th><th data-k="name">Model <span class="arr"></span></th><th data-k="n">Preds <span class="arr"></span></th>
       <th data-k="acc">Accuracy <span class="arr"></span></th><th data-k="brier">Brier ↓ <span class="arr"></span></th>
-      <th data-k="conf">Confidence <span class="arr"></span></th><th data-k="pl">P&amp;L <span class="arr"></span></th><th data-k="streak">Streak <span class="arr"></span></th>
+      <th data-k="conf">Confidence <span class="arr"></span></th><th data-k="pl">P&amp;L <span class="arr"></span></th><th data-k="streak">Streak <span class="arr"></span></th><th>Arm</th>
     </tr></thead><tbody></tbody></table>
   </section>
   <section id="predictions" style="display:none">
@@ -124,6 +134,8 @@ footer{border-top:1px solid var(--border);padding:22px 0;color:var(--dim);font-s
 const SB_URL = "https://yxaqgxklualhdoxjmvsj.supabase.co";
 const SB_KEY = "sb_publishable_CJM1TbQVVW6yHzAHid-CXQ_4KFqUSf5";
 
+const TRAINED_IDS = new Set(["lgbm_trainer","glm_feedback"]);
+const armOf = id => TRAINED_IDS.has(id) ? "trained" : "static";
 const $ = s => document.querySelector(s);
 const state = {tab:"leaderboard", cat:"all", sort:"acc", dir:-1, pres:"all", plimit:60};
 let MODELS=[], PREDS=[];
@@ -170,7 +182,7 @@ function score(){
     const meta = MODELS.find(x=>x.model_id===id)||{};
     let streak=0; const sorted=m.hist.sort((a,b)=>a.t<b.t?-1:1);
     for(let i=sorted.length-1;i>=0;i--){ if(sorted[i].ok){streak++;} else break; }
-    out.push({id, name:meta.model_name||id, cat:meta.category||"all", author:meta.author,
+    out.push({id, name:meta.model_name||id, cat:meta.category||"all", author:meta.author, arm:armOf(id),
       n:m.n, res:m.res, acc:m.res?m.hit/m.res:null, brier:m.res?m.brier/m.res:null,
       conf:m.n?m.conf/m.n:null, pl:m.pl, streak, assets:m.cats});
   }
@@ -200,9 +212,21 @@ function renderLB(){
     va=va??-Infinity; vb=vb??-Infinity;
     return state.dir*(va-vb)||(b.res-a.res);
   });
-  $("#lb tbody").innerHTML = rows.map((m,i)=>`
-    <tr>
-      <td class="rank">${i<3?["🥇","🥈","🥉"][i]:i+1}</td>
+  const stat = rows.filter(m=>m.arm==="static"&&m.res>0), trn = rows.filter(m=>m.arm==="trained"&&m.res>0);
+  const avg = a => a.length ? a.reduce((s,m)=>s+(m.acc||0)*m.res,0)/a.reduce((s,m)=>s+m.res,0) : null;
+  const best = a => a.length ? a.reduce((p,c)=>((c.acc||0)>(p.acc||0)?c:p)) : null;
+  let html = "";
+  if(trn.length){
+    const bt = best(trn), bs = best(stat);
+    html += `<div class="vsbar">
+      <span class="lbl">Static vs Trained</span>
+      <span class="cell">Best static: <b>${bs?fmtPct(bs.acc):"—"}</b> <span style="color:var(--dim)">${bs?esc(bs.name):""}</span></span>
+      <span class="cell">Best trained: <b style="color:var(--green)">${bt?fmtPct(bt.acc):"—"}</b> <span style="color:var(--dim)">${bt?esc(bt.name):""}</span></span>
+      <span class="cell">Arm avg: <b>${avg(stat)?fmtPct(avg(stat)):"—"}</b> vs <b style="color:var(--green)">${avg(trn)?fmtPct(avg(trn)):"—"}</b></span>
+    </div>`;
+  }
+  const rowHtml = m => `<tr>
+      <td class="rank">${m._rank<3?["🥇","🥈","🥉"][m._rank]:m._rank}</td>
       <td class="model">${esc(m.name)} <span class="tag ${m.cat}">${m.cat}</span></td>
       <td>${m.n} <span style="color:var(--dim)">(${m.res} res)</span></td>
       <td><b>${m.acc==null?"—":fmtPct(m.acc)}</b>${m.acc==null?"":`<span class="bar" style="width:${m.acc*70}px"></span>`}</td>
@@ -210,7 +234,18 @@ function renderLB(){
       <td>${m.conf==null?"—":fmtPct(m.conf,0)}</td>
       <td class="${m.pl>0?"up":m.pl<0?"down":"flat"}">${m.pl>=0?"+":""}${m.pl.toFixed(2)}</td>
       <td class="${m.streak>0?"up":"flat"}">${m.streak?m.streak+"W":"—"}</td>
-    </tr>`).join("");
+      <td>${m.arm==="trained"?'<span class="tag trained">🧠 TRAINED</span>':'<span class="tag" style="opacity:.55">static</span>'}</td>
+    </tr>`;
+  if(trn.length){
+    const THEAD = document.querySelector("#lb thead")?.innerHTML || "";
+    html += `<div class="armhead trained"><h2>🧠 Trained arms</h2><span class="sub">weights/memory update from resolved outcomes (walk-forward)</span></div><table id="lb"><thead>${THEAD}</thead><tbody>`;
+    trn.forEach((m,i)=>{m._rank=i+1; html+=rowHtml(m);});
+    html += `</tbody></table>`;
+  }
+  html += `<div class="armhead static"><h2>Static / frozen models</h2><span class="sub">fixed weights — never see outcomes</span></div><table id="lb2"><thead>${THEAD}</thead><tbody>`;
+  stat.forEach((m,i)=>{m._rank=i+1; html+=rowHtml(m);});
+  html += `</tbody></table>`;
+  $("#lb").outerHTML = html;
 }
 
 function renderPreds(){
@@ -237,7 +272,7 @@ function renderPreds(){
 function renderModels(){
   $("#mcards").innerHTML = MODELS.map(m=>`
     <div class="card">
-      <h3>${esc(m.model_name)}</h3>
+      <h3>${esc(m.model_name)}${(m.model_info&&m.model_info.type&&String(m.model_info.type).includes("Trained"))?" <span class=\"tag trained\">🧠 TRAINED</span>":""}</h3>
       <div class="auth">${m.author?`<a href="${esc(m.author_url||"#")}">${esc(m.author)}</a> · `:""}<span class="tag ${m.category}">${esc(m.category)}</span></div>
       <p>${esc(m.description)}</p>
       ${m.model_info?`<div class="kv">${Object.entries(m.model_info).map(([k,v])=>`${esc(k)}: ${esc(String(v).slice(0,60))}`).join(" · ")}</div>`:""}

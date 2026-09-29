@@ -216,6 +216,7 @@ function renderLB(){
   const avg = a => a.length ? a.reduce((s,m)=>s+(m.acc||0)*m.res,0)/a.reduce((s,m)=>s+m.res,0) : null;
   const best = a => a.length ? a.reduce((p,c)=>((c.acc||0)>(p.acc||0)?c:p)) : null;
   let html = "";
+  const THEAD = document.querySelector("#lb thead")?.innerHTML || "";
   if(trn.length){
     const bt = best(trn), bs = best(stat);
     html += `<div class="vsbar">
@@ -237,7 +238,6 @@ function renderLB(){
       <td>${m.arm==="trained"?'<span class="tag trained">🧠 TRAINED</span>':'<span class="tag" style="opacity:.55">static</span>'}</td>
     </tr>`;
   if(trn.length){
-    const THEAD = document.querySelector("#lb thead")?.innerHTML || "";
     html += `<div class="armhead trained"><h2>🧠 Trained arms</h2><span class="sub">weights/memory update from resolved outcomes (walk-forward)</span></div><table id="lb"><thead>${THEAD}</thead><tbody>`;
     trn.forEach((m,i)=>{m._rank=i+1; html+=rowHtml(m);});
     html += `</tbody></table>`;

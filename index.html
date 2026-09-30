@@ -62,6 +62,8 @@ td.model{font-family:inherit;font-weight:600}
 .vsbar .cell b{font-size:19px;font-family:var(--mono)}
 .vsbar .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
 .pend{color:var(--dim)}
+.cellsub{font-size:11px;color:var(--dim);font-family:var(--mono)}
+@media(max-width:760px){.hidesm{display:none}}
 .cardgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;margin-top:18px}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:18px}
 .card h3{font-size:16px;margin-bottom:2px}
@@ -108,13 +110,26 @@ footer{border-top:1px solid var(--border);padding:22px 0;color:var(--dim);font-s
     <div class="chips" id="resChips">
       <span class="chip on" data-f="all">All</span><span class="chip" data-f="resolved">Resolved</span><span class="chip" data-f="open">Open</span>
     </div>
-    <table id="pt"><thead><tr><th>Time (UTC)</th><th>Model</th><th>Asset</th><th>TF</th><th>Call</th><th>Conf</th><th>Actual</th><th>Result</th><th>Brier</th></tr></thead><tbody></tbody></table>
+    <table id="pt"><thead><tr><th>Made (UTC)</th><th>Model</th><th>Asset</th><th>Window</th><th>Call</th><th>Conf</th><th class="hidesm">Entry → Settle</th><th>Result</th><th>Brier</th></tr></thead><tbody></tbody></table>
     <div class="chips"><span class="chip" id="moreBtn">Load more ▾</span></div>
   </section>
   <section id="models" style="display:none"><div class="cardgrid" id="mcards"></div></section>
   <section id="about" style="display:none"><div class="about">
     <h2>What is this?</h2>
     <p>A live leaderboard measuring how well AI and algorithmic models predict short-horizon price direction in crypto (BTC/ETH) and forex (EUR/USD) markets. Predictions are recorded to a public database <em>before</em> outcomes are known, then scored automatically when each market window resolves.</p>
+    <h2>What exactly is being predicted?</h2>
+    <p>Every model calls the <b>direction of the price move over a fixed 24-hour window</b>: will the asset close higher or lower <b>24 hours from the moment the call is made</b>? There are no 15-minute or intraday calls here, and no price targets — only up/down plus a confidence.</p>
+    <ul>
+      <li><b>When calls are made:</b> once a day, ~12:00 UTC (8am ET), for all assets at once.</li>
+      <li><b>When they settle:</b>
+        <ul>
+          <li><b>Crypto &amp; forex</b> — exactly 24h after the call (price at call time vs price 24h later).</li>
+          <li><b>Stocks &amp; ETFs</b> — at the <b>next 4pm ET close</b> after the window (a Friday call settles Monday's close; weekends skip).</li>
+          <li><b>Flat settle</b> (~9% of windows) — if the price is unchanged at settlement, the call scores wrong either way.</li>
+        </ul>
+      </li>
+      <li><b>Scoring cadence:</b> the resolver runs daily, so a resolved row's timestamp can trail the settle time by up to a day — the <i>Predictions</i> tab shows both timestamps.</li>
+    </ul>
     <h2>Methodology</h2>
     <ul>
       <li><b>Directions, not prices.</b> Each model emits up/down calls with a confidence; scoring compares against realized direction at the timeframe horizon.</li>
@@ -122,6 +137,7 @@ footer{border-top:1px solid var(--border);padding:22px 0;color:var(--dim);font-s
       <li><b>Accuracy</b> = share of resolved calls matching realized direction.</li>
       <li><b>P&amp;L</b> = simulated unit stake per call at the model's confidence.</li>
       <li><b>Random baseline</b> is included as the floor any real signal must beat.</li>
+      <li><b>"How wrong / how right."</b> Direction alone doesn't say how big the miss was. The <i>Predictions</i> tab shows the <b>entry → settle price and % change</b> for every call: a miss by +0.02% is a near-coin-flip, a miss by −4% was confidently wrong. Being "right" means right <b>at settlement</b> (24h / next close) — the path within the window doesn't matter.</li>
     </ul>
     <h2>Data</h2>
     <p>All predictions and results are stored in a public Supabase (PostgREST) database and synced from the scoring harness on a schedule. This page computes every statistic client-side from the raw rows — refresh to re-score.</p>
@@ -162,6 +178,12 @@ async function fetchAll(table, cols){
 }
 
 function fmtPct(x, n){ return (x*100).toFixed(n??1)+"%"; }
+function fmtPx(v, asset){
+  if(v==null) return "—";
+  const fx = asset&&/USD$/.test(asset);
+  return fx ? v.toFixed(4) : v>=1000 ? v.toLocaleString("en-US",{maximumFractionDigits:0}) : v.toFixed(2);
+}
+const WIN_LABEL = {"24h":"24 hours","15m":"15 minutes","25m":"25 minutes"};
 function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 function score(){
@@ -256,13 +278,20 @@ function renderPreds(){
   $("#pt tbody").innerHTML = slice.map(p=>{
     const meta = MODELS.find(x=>x.model_id===p.model_id)||{};
     const okc = p.correct===null?"pend":(p.correct?"up":"down");
+    const ent = p.predicted_price!=null ? fmtPx(p.predicted_price,p.asset) : "—";
+    const set = p.actual_price!=null ? fmtPx(p.actual_price,p.asset) : "…";
+    const chg = (p.predicted_price!=null&&p.actual_price!=null&&p.predicted_price!==0) ?
+      ((p.actual_price-p.predicted_price)/p.predicted_price*100) : null;
+    const settle = p.resolved_at ? p.resolved_at.slice(0,16).replace("T"," ") : "—";
+    const win = WIN_LABEL[p.timeframe] || p.timeframe;
+    const made = (p.created_at||"").slice(0,16).replace("T"," ");
     return `<tr>
-      <td style="color:var(--dim)">${esc((p.created_at||"").slice(0,16).replace("T"," "))}</td>
+      <td style="color:var(--dim)">${made}<div class="cellsub">settled ${settle}</div></td>
       <td class="model">${esc(meta.model_name||p.model_id)}</td>
-      <td>${esc(p.asset)}</td><td>${esc(p.timeframe)}</td>
+      <td>${esc(p.asset)}</td><td>${esc(win)}</td>
       <td class="${p.predicted_direction==="up"?"up":"down"}">${p.predicted_direction==="up"?"▲ up":"▼ down"}</td>
       <td>${p.confidence==null?"—":fmtPct(p.confidence,0)}</td>
-      <td class="${p.actual_direction==="up"?"up":p.actual_direction==="down"?"down":"flat"}">${p.actual_direction?esc(p.actual_direction):"—"}</td>
+      <td class="hidesm">${ent} → <b>${set}</b>${chg==null?"":` <span class="${chg>=0?"up":"down"}">${chg>=0?"+":""}${chg.toFixed(2)}%</span>`}</td>
       <td class="${okc==="up"?"up":okc==="down"?"down":"pend"}">${okc==="up"?"✓ hit":okc==="down"?"✗ miss":"pending"}</td>
       <td>${p.brier_score==null?"—":p.brier_score.toFixed(3)}</td>
     </tr>`;}).join("");
@@ -309,7 +338,7 @@ document.addEventListener("click", e=>{
   try{
     [MODELS, PREDS] = await Promise.all([
       sb("models?select=model_id,model_name,description,author,author_url,category,model_info&limit=200"),
-      fetchAll("predictions","model_id,asset,timeframe,predicted_direction,confidence,actual_direction,correct,brier_score,profit_loss,created_at,resolved_at")
+      fetchAll("predictions","model_id,asset,timeframe,predicted_direction,confidence,actual_direction,correct,brier_score,profit_loss,created_at,resolved_at,predicted_price,actual_price")
     ]);
     renderStats();
     const cats = ["all",...new Set(MODELS.map(m=>m.category).filter(c=>c&&c!=="all"))];
